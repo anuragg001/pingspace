@@ -2,30 +2,34 @@
 import { useUsername } from "@/hooks/use-username";
 import { client } from "@/lib/client";
 import { useMutation } from "@tanstack/react-query";
-import { nanoid } from "nanoid";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense } from "react";
+
+const Page = () => {
+  return <Suspense>
+    <Lobby />;
+  </Suspense>
+}
 
 
-
-export default function Home() {
+function Lobby() {
   const { username } = useUsername();
   const router = useRouter();
-
+  
   const searchParams = useSearchParams();
   const wasDestroyed = searchParams.get("destroyed") === "true";
   const error = searchParams.get("error");
-
+  
   const { mutate: createRoom } = useMutation({
     mutationFn: async () => {
       const res = await client.room.create.post(); //fetch call to backend
-
+      
       if (res.status === 200) {
         router.push(`/room/${res.data?.roomId}`);
       }
     }
   })
-
+  
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 ">
       <div className="w-full max-w-md  space-y-8">
@@ -67,3 +71,5 @@ export default function Home() {
     </main>
   );
 }
+
+export default Page;
