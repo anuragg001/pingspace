@@ -8,6 +8,7 @@ import { Message, realtime } from '@/lib/realtime';
 
 const ROOM_TTL_SECONDS = 60 * 10; // 10 minutes
 
+
 const rooms = new Elysia({ prefix: "/room" }).post("/create", async () => {
     const roomId = nanoid();
 
