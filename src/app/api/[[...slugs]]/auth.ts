@@ -2,7 +2,6 @@
 
 import { redis } from "@/lib/redis";
 import Elysia from "elysia";
-import { unauthorized } from "next/navigation";
 
 class AuthError extends Error {
     constructor(message: string) {
@@ -10,6 +9,25 @@ class AuthError extends Error {
         this.name = "AuthError";
 
     }
+}
+
+const parseConnected = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+        return value.filter((item): item is string => typeof item === "string");
+    }
+
+    if (typeof value === "string") {
+        try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) {
+                return parsed.filter((item): item is string => typeof item === "string");
+            }
+        } catch {
+            return [];
+        }
+    }
+
+    return [];
 }
 
 export const authMiddleware = new Elysia({
@@ -24,13 +42,14 @@ export const authMiddleware = new Elysia({
     })
     .derive({ as: "scoped" }, async ({ query, cookie }) => {
         const roomId = query.roomId;
-        const token = cookie["x-auth-token"].value as string | undefined;
+        const token = cookie["x-auth-token"]?.value as string | undefined;
 
         if (!roomId || !token) {
             throw new AuthError("Missing roomId or token");
         }
 
-        const connected = await redis.hget<string[]>(`meta:${roomId}`, "connected")
+        const connectedRaw = await redis.hget<unknown>(`meta:${roomId}`, "connected")
+        const connected = parseConnected(connectedRaw)
 
         if (!connected?.includes(token)) {
             throw new AuthError("Invalid token for room");

@@ -2,29 +2,36 @@ import { redis } from '@/lib/redis';
 import { Elysia } from 'elysia'
 import { nanoid } from 'nanoid'
 import { authMiddleware } from './auth';
-import { nan, z } from 'zod';
-import { time } from 'console';
-import { Message, realtime } from '@/lib/realtime';
+import { z } from 'zod';
+import type { Message } from '@/lib/realtime';
 
 const ROOM_TTL_SECONDS = 60 * 10; // 10 minutes
 
 
-const rooms = new Elysia({ prefix: "/room" }).post("/create", async () => {
-    const roomId = nanoid();
+const rooms = new Elysia({ prefix: "/room" }).post("/create", async ({ set }) => {
+    try {
+        const roomId = nanoid();
 
-    await redis.hset(`meta:${roomId}`, {
-        connected: [],
-        createdAt: Date.now()
-    })
-    //autodeletion
-    await redis.expire(`meta:${roomId}`, ROOM_TTL_SECONDS);
-    return { roomId };
+        await redis.hset(`meta:${roomId}`, {
+            connected: JSON.stringify([]),
+            createdAt: Date.now()
+        })
+        await redis.expire(`meta:${roomId}`, ROOM_TTL_SECONDS);
+        return { roomId };
+    } catch (error) {
+        console.error("room/create failed", error)
+        set.status = 500
+        return {
+            error: error instanceof Error ? error.message : "room-create-failed"
+        }
+    }
 }).use(authMiddleware)
     .get("/ttl", async ({ auth }) => {
         const ttl = await redis.ttl(`meta:${auth.roomId}`);
         return { ttl: ttl > 0 ? ttl : 0 };
     }, { query: z.object({ roomId: z.string() }) })
     .delete("/", async ({ auth }) => {
+        const { realtime } = await import('@/lib/realtime')
         await realtime.channel(auth.roomId).emit("chat.destroy", {isDestroyed:true});
         await Promise.all([
             redis.del(auth.roomId),
@@ -40,6 +47,7 @@ const messages = new Elysia({ prefix: "/messages" }).use(authMiddleware)
     .post("/", async ({ body, auth }) => {
         const { sender, text } = body
         const { roomId } = auth
+        const { realtime } = await import('@/lib/realtime')
         const roomExists = await redis.exists(`meta:${roomId}`)
 
         if (!roomExists) {
