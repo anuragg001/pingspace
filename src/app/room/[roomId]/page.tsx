@@ -101,8 +101,7 @@ const Page = () => {
     })
 
     const copyLink = () => {
-        const url = window.location.href;
-        navigator.clipboard.writeText(url);
+        navigator.clipboard.writeText(roomId);
         setCopyStatus("Copied");
         setTimeout(() => setCopyStatus("Copy"), 2000);
     }
