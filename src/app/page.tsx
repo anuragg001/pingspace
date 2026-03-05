@@ -7,7 +7,7 @@ import { Suspense } from "react";
 
 const Page = () => {
   return <Suspense>
-    <Lobby />;
+    <Lobby />
   </Suspense>
 }
 
@@ -69,7 +69,7 @@ function Lobby() {
         </div>
       </div>
     </main>
-  );
+  )
 }
 
 export default Page;
